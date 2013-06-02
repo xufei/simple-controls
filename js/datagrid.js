@@ -12,24 +12,24 @@ function DataGrid(element) {
 }
 
 DataGrid.prototype = {
-	loadColumns: function(columns) {
+	loadColumns: function (columns) {
 		if (this.header.rows.length > 0) {
 			this.header.removeChild(this.header.rows[0]);
 		}
 		var tr = this.header.insertRow(0);
 
-		for (var i=0; i<columns.length; i++) {
+		for (var i = 0; i < columns.length; i++) {
 			var th = tr.insertCell(i);
 			th.innerHTML = columns[i].label;
 		}
 		this.columns = columns;
 	},
 
-	loadData: function(data) {
-		for (var i=0; i<data.length; i++) {
+	loadData: function (data) {
+		for (var i = 0; i < data.length; i++) {
 			this.insertRow(data[i]);
 		}
-		
+
 		//跟外面说一声，数据加载好了
 		var event = {
 			type: "loadComplete",
@@ -38,14 +38,14 @@ DataGrid.prototype = {
 		this.dispatchEvent(event);
 	},
 
-	insertRow: function(data) {
+	insertRow: function (data) {
 		var row = new DataRow(data, this);
 		this.tbody.appendChild(row.dom);
 
 		this.rows.push(row);
 
 		var that = this;
-		row.addEventListener("select", function(event) {
+		row.addEventListener("select", function (event) {
 			that.select(event.row);
 		});
 
@@ -59,7 +59,7 @@ DataGrid.prototype = {
 		this.dispatchEvent(event);
 	},
 
-	removeRow: function(row) {
+	removeRow: function (row) {
 		if (row === this.selectedRow) {
 			this.selectedRow = null;
 		}
@@ -67,9 +67,8 @@ DataGrid.prototype = {
 		this.tbody.removeChild(row.dom);
 		row.destroy();
 
-		for (var i=0; i<this.rows.length; i++) {
-			if (this.rows[i] == row)
-			{
+		for (var i = 0; i < this.rows.length; i++) {
+			if (this.rows[i] == row) {
 				this.rows.splice(i, 1);
 				break;
 			}
@@ -83,7 +82,7 @@ DataGrid.prototype = {
 		this.dispatchEvent(event);
 	},
 
-	select: function(row) {
+	select: function (row) {
 		var event = {
 			type: "change",
 			target: this,
@@ -114,9 +113,9 @@ function DataRow(data, grid) {
 }
 
 DataRow.prototype = {
-	create: function() {
+	create: function () {
 		var row = document.createElement("tr");
-		for (var i=0; i<this.grid.columns.length; i++) {
+		for (var i = 0; i < this.grid.columns.length; i++) {
 			var cell = document.createElement("td");
 			cell.innerHTML = this.data[this.grid.columns[i].field] || "";
 			row.appendChild(cell);
@@ -124,7 +123,7 @@ DataRow.prototype = {
 		this.dom = row;
 
 		var that = this;
-		row.onclick = function(event) {
+		row.onclick = function (event) {
 			//通知上级，我被点了
 			var newEvent = {
 				type: "select",
@@ -135,24 +134,24 @@ DataRow.prototype = {
 		}
 	},
 
-	destroy: function() {
+	destroy: function () {
 		this.dom = null;
 		this.data = null;
 		this.grid = null;
 	},
 
-	select: function() {
+	select: function () {
 		this.dom.className = "info";
 	},
 
-	unselect: function() {
+	unselect: function () {
 		this.dom.className = "";
 	},
 
-	set: function(key, value) {
+	set: function (key, value) {
 		this.data[key] = value;
 
-		for (var i=0; i<this.grid.columns.length; i++) {
+		for (var i = 0; i < this.grid.columns.length; i++) {
 			if (this.grid.columns[i].field === key) {
 				this.dom.childNodes[i].innerHTML = value;
 				break;
@@ -160,14 +159,14 @@ DataRow.prototype = {
 		}
 	},
 
-	get: function(key) {
+	get: function (key) {
 		return this.data[key];
 	},
 
-	refresh: function(data) {
+	refresh: function (data) {
 		this.data = data;
 
-		for (var i=0; i<this.grid.columns.length; i++) {
+		for (var i = 0; i < this.grid.columns.length; i++) {
 			this.dom.childNodes[i].innerHTML = data[this.grid.columns[i].field] || "";
 		}
 	}

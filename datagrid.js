@@ -1,6 +1,6 @@
 //作为一个控件，它的容器必须传入
 function DataGrid(element) {
-  this.columns = [];
+	this.columns = [];
 	this.rows = [];
 
 	element.innerHTML = '<table class="table table-bordered table-striped"><thead><tr></tr></thead><tbody></tbody><table>';

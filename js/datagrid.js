@@ -49,7 +49,6 @@ DataGrid.prototype = {
 			that.select(event.row);
 		});
 
-
 		//已经成功添加了新行
 		var event = {
 			type: "rowInserted",
@@ -127,7 +126,7 @@ DataRow.prototype = {
 			//通知上级，我被点了
 			var newEvent = {
 				type: "select",
-				target: this,
+				target: that,
 				row: that
 			};
 			that.dispatchEvent(newEvent);

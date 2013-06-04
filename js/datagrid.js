@@ -32,7 +32,7 @@ DataGrid.prototype = {
 
 		//跟外面说一声，数据加载好了
 		var event = {
-			type: "loadComplete",
+			type: "loadCompleted",
 			target: this
 		};
 		this.dispatchEvent(event);
@@ -45,7 +45,7 @@ DataGrid.prototype = {
 		this.rows.push(row);
 
 		var that = this;
-		row.addEventListener("select", function (event) {
+		row.addEventListener("selected", function (event) {
 			that.select(event.row);
 		});
 
@@ -83,7 +83,7 @@ DataGrid.prototype = {
 
 	select: function (row) {
 		var event = {
-			type: "change",
+			type: "changed",
 			target: this,
 			oldRow: this.selectedRow,
 			newRow: row
@@ -125,7 +125,7 @@ DataRow.prototype = {
 		row.onclick = function (event) {
 			//通知上级，我被点了
 			var newEvent = {
-				type: "select",
+				type: "selected",
 				target: that,
 				row: that
 			};

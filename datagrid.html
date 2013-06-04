@@ -73,13 +73,13 @@
 
 	var grid = new DataGrid(document.getElementById("grid1"));
 
-	grid.addEventListener("loadComplete", function(event) {
+	grid.addEventListener("loadCompleted", function(event) {
 		if (event.target.rows.length > 0) {
 			event.target.select(event.target.rows[0]);
 		}
 	});
 
-	grid.addEventListener("change", function(event) {
+	grid.addEventListener("changed", function(event) {
 		var data;
 		if (event.newRow) {
 			data = event.newRow.data;

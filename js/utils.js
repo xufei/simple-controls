@@ -26,9 +26,11 @@ var EventDispatcher = {
 	
 	dispatchEvent: function(event) {
 		var eventType = event.type;
-		for (var i=0; i<this.eventMap[eventType].length; i++) {
-			//把对当前事件添加的处理函数拿出来挨个执行
-			this.eventMap[eventType][i](event);
+		if (this.eventMap && this.eventMap[eventType]) {
+			for (var i=0; i<this.eventMap[eventType].length; i++) {
+				//把对当前事件添加的处理函数拿出来挨个执行
+				this.eventMap[eventType][i](event);
+			}
 		}
 	}
 };
@@ -42,3 +44,30 @@ Object.prototype.extend = function(base) {
 	}
 	return this;
 };
+
+/**
+ * 一个模仿.net中delegate的东西，主要是替换了事件主体
+ * @param {Object} context 事件上下文，通常用以取代默认的发生事件的元素
+ * @param {Function} fun 事件处理函数
+ */
+function Delegate(context, fun)
+{
+	var args = [].slice.call(arguments).slice(2);
+	return function()
+	{
+		return fun.apply(context, [].slice.call(arguments).concat(args));
+	};
+}
+
+function getOffset(elem) {
+	var offset = null;
+	if ( elem ) {
+		offset = {left: 0, top: 0};
+		do {
+			offset.top += elem.offsetTop;
+			offset.left += elem.offsetLeft;
+			elem = elem.offsetParent;
+		} while ( elem );
+	}
+	return offset;
+}

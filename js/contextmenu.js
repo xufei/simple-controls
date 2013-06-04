@@ -38,7 +38,9 @@ ContextMenu.prototype = {
 			var that = this;
 			item.addEventListener("clicked", function(event) {
 				that.hide();
+
 				event.type = "itemClicked";
+				event.target = that;
 				that.dispatchEvent(event);
 			});
 		}
@@ -46,8 +48,8 @@ ContextMenu.prototype = {
 
 	show: function(position) {
 		this.dom.firstChild.style.display = "block";
-		this.dom.style.pixelLeft = position.x;
-		this.dom.style.pixelTop = position.y;
+		this.dom.style.pixelLeft = position.left;
+		this.dom.style.pixelTop = position.top;
 	},
 
 	hide: function() {
@@ -81,7 +83,7 @@ ContextMenuItem.prototype = {
 			dom.onclick = function(event) {
 				var newEvent = {
 					type: "clicked",
-					target: this.menu,
+					target: that,
 					item: that
 				};
 				that.dispatchEvent(newEvent);

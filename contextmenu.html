@@ -26,7 +26,7 @@
 
 		document.getElementById("main").oncontextmenu = function(event) {
 			var evt = event || window.event;
-			menu.show({x:evt.offsetX, y:evt.offsetY});
+			menu.show({left:evt.offsetX, top:evt.offsetY});
 			return false;
 		};
 

@@ -90,11 +90,11 @@ DataGrid.prototype = {
 		};
 
 		if (this.selectedRow) {
-			this.selectedRow.unselect();
+			this.selectedRow.select(false);
 		}
 
 		if (row) {
-			row.select();
+			row.select(true);
 		}
 
 		this.selectedRow = row;
@@ -139,12 +139,13 @@ DataRow.prototype = {
 		this.grid = null;
 	},
 
-	select: function () {
-		this.dom.className = "info";
-	},
-
-	unselect: function () {
-		this.dom.className = "";
+	select: function (flag) {
+		if (flag) {
+			this.dom.className = "info";
+		}
+		else {
+			this.dom.className = "";
+		}
 	},
 
 	set: function (key, value) {

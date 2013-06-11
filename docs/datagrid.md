@@ -177,10 +177,10 @@ DataGrid控件主要需要响应这样几个事件：
 
 综上所述，表格行有这几个职责：
 
-- 创建
-- 销毁
-- 选中，改变样式为选中状态
-- 取消选中，改变样式为非选中状态
+- 创建，做一些初始化的事情
+- 销毁，主要是行呗删除的时候把DOM和数据的引用去掉，这样浏览器可以做内存回收
+- 选中，改变样式为选中状态，比如山鸡戴上了三个表，从此成为了代表
+- 取消选中，改变样式为非选中状态，比如浩南把自己的表给了山鸡，自己就不是代表了
 - 设置属性，比如浩南把山鸡的称呼改成鸡哥
 - 获取属性，比如别人看到山鸡，打听一下就知道他是鸡哥
 
@@ -254,3 +254,409 @@ DataGrid控件主要需要响应这样几个事件：
     };
 
 #4. 上述功能的实现
+
+我们把前面这两段代码放置在一个util.js中，因为这些功能不仅仅在DataGrid中会用到，然后，再创建一个datagrid.js，内容如下：
+
+	//作为一个控件，它的容器必须传入
+	function DataGrid(element) {
+		this.columns = [];
+		this.rows = [];
+
+		element.innerHTML = '<table class="table table-bordered table-striped"><thead><tr></tr></thead><tbody></tbody><table>';
+
+		this.header = element.firstChild.tHead;
+		this.tbody = element.firstChild.tBodies[0];
+
+		this.selectedRow = null;
+	}
+
+	DataGrid.prototype = {
+		loadColumns: function (columns) {
+			if (this.header.rows.length > 0) {
+				this.header.removeChild(this.header.rows[0]);
+			}
+			var tr = this.header.insertRow(0);
+
+			for (var i = 0; i < columns.length; i++) {
+				var th = tr.insertCell(i);
+				th.innerHTML = columns[i].label;
+			}
+			this.columns = columns;
+		},
+
+		loadData: function (data) {
+			for (var i = 0; i < data.length; i++) {
+				this.insertRow(data[i]);
+			}
+
+			//跟外面说一声，数据加载好了
+			var event = {
+				type: "loadCompleted",
+				target: this
+			};
+			this.dispatchEvent(event);
+		},
+
+		insertRow: function (data) {
+			var row = new DataRow(data, this);
+			this.tbody.appendChild(row.dom);
+
+			this.rows.push(row);
+
+			var that = this;
+			row.addEventListener("selected", function (event) {
+				that.select(event.row);
+			});
+
+			//已经成功添加了新行
+			var event = {
+				type: "rowInserted",
+				newRow: row,
+				target: this
+			};
+			this.dispatchEvent(event);
+		},
+
+		removeRow: function (row) {
+			if (row === this.selectedRow) {
+				this.selectedRow = null;
+			}
+
+			this.tbody.removeChild(row.dom);
+			row.destroy();
+
+			for (var i = 0; i < this.rows.length; i++) {
+				if (this.rows[i] == row) {
+					this.rows.splice(i, 1);
+					break;
+				}
+			}
+
+			//已经移除
+			var event = {
+				type: "rowRemoved",
+				target: this
+			};
+			this.dispatchEvent(event);
+		},
+
+		select: function (row) {
+			var event = {
+				type: "changed",
+				target: this,
+				oldRow: this.selectedRow,
+				newRow: row
+			};
+
+			if (this.selectedRow) {
+				this.selectedRow.select(false);
+			}
+
+			if (row) {
+				row.select(true);
+			}
+
+			this.selectedRow = row;
+
+			this.dispatchEvent(event);
+		}
+	}.extend(EventDispatcher);
+
+
+	function DataRow(data, grid) {
+		this.data = data;
+		this.grid = grid;
+
+		this.create();
+	}
+
+	DataRow.prototype = {
+		create: function () {
+			var row = document.createElement("tr");
+			for (var i = 0; i < this.grid.columns.length; i++) {
+				var cell = document.createElement("td");
+				cell.innerHTML = this.data[this.grid.columns[i].field] || "";
+				row.appendChild(cell);
+			}
+			this.dom = row;
+
+			var that = this;
+			row.onclick = function (event) {
+				//通知上级，我被点了
+				var newEvent = {
+					type: "selected",
+					target: that,
+					row: that
+				};
+				that.dispatchEvent(newEvent);
+			}
+		},
+
+		destroy: function () {
+			this.dom = null;
+			this.data = null;
+			this.grid = null;
+		},
+
+		select: function (flag) {
+			if (flag) {
+				this.dom.className = "info";
+			}
+			else {
+				this.dom.className = "";
+			}
+		},
+
+		set: function (key, value) {
+			this.data[key] = value;
+
+			for (var i = 0; i < this.grid.columns.length; i++) {
+				if (this.grid.columns[i].field === key) {
+					this.dom.childNodes[i].innerHTML = value;
+					break;
+				}
+			}
+		},
+
+		get: function (key) {
+			return this.data[key];
+		},
+
+		refresh: function (data) {
+			this.data = data;
+
+			for (var i = 0; i < this.grid.columns.length; i++) {
+				this.dom.childNodes[i].innerHTML = data[this.grid.columns[i].field] || "";
+			}
+		}
+	}.extend(EventDispatcher);
+
+然后，我们为它创建一个测试页面，叫做datagrid.html，内容如下：
+
+	<!DOCTYPE html>
+	<html>
+	<head>
+		<meta charset="utf-8">
+		<title>DataGrid</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="description" content="DataGrid">
+		<meta name="author" content="xu.fei@outlook.com">
+
+		<link href="http://twitter.github.io/bootstrap/assets/css/bootstrap.css" rel="stylesheet"/>
+		<script type="text/javascript" src="js/utils.js"></script>
+		<script type="text/javascript" src="js/datagrid.js"></script>
+	</head>
+	<body>
+		<div class="span12">
+			<div class="header">
+				<h3>Staff Management</h3>
+			</div>
+			<div>
+				<div id="grid1" class="row"></div>
+				<div class="row">
+					<div class="header">
+						<h4>Detail</h4>
+					</div>
+					<hr/>
+					<form class="form-horizontal span6">
+						<div class="control-group">
+							<label class="control-label" for="inputIndex">Index</label>
+							<div class="controls">
+								<input type="text" id="inputIndex" placeholder="Index">
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputGender">Gender</label>
+							<div class="controls">
+								<input type="text" id="inputGender" placeholder="Gender">
+							</div>
+						</div>
+					</form>
+					<form class="form-horizontal span6">
+						<div class="control-group">
+							<label class="control-label" for="inputName">Name</label>
+							<div class="controls">
+								<input type="text" id="inputName" placeholder="Name">
+							</div>
+						</div>
+						<div class="control-group">
+							<label class="control-label" for="inputAge">Age</label>
+							<div class="controls">
+								<input type="text" id="inputAge" placeholder="age">
+							</div>
+						</div>
+					</form>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<div id="operateBtns">
+					<button class="btn btn-primary" onclick="newClicked()">New</button>
+					<button class="btn btn-primary" onclick="modifyClicked()"><i class="icon-edit icon-white"></i>Modify</button>
+					<button class="btn btn-primary" onclick="deleteClicked()"><i class="icon-remove icon-white"></i>Delete</button>
+				</div>
+				<div id="confirmBtns">
+					<button class="btn btn-primary" onclick="okClicked()"><i class="icon-ok icon-white"></i>OK</button>
+					<button class="btn btn-primary" onclick="cancelClicked()">Cancel</button>
+				</div>
+			</div>
+		</div>
+
+		<script type="text/javascript">
+		var state = "View";
+
+		var grid = new DataGrid(document.getElementById("grid1"));
+
+		grid.addEventListener("loadCompleted", function(event) {
+			if (event.target.rows.length > 0) {
+				event.target.select(event.target.rows[0]);
+			}
+		});
+
+		grid.addEventListener("changed", function(event) {
+			var data;
+			if (event.newRow) {
+				data = event.newRow.data;
+			}
+			else {
+				data = {};
+			}
+
+			setFormData(data);
+		});
+
+		grid.addEventListener("rowInserted", function(event) {
+			event.target.select(event.newRow);
+		});
+
+		grid.addEventListener("rowRemoved", function(event) {
+			if (event.target.rows.length > 0) {
+				event.target.select(event.target.rows[0]);
+			}
+		});
+
+		init();
+
+		function init() {
+			enableForm(false);
+			switchButtons("Operate");
+
+			var columns = [{
+				label: "#",
+				field: "index"
+			}, {
+				label: "Name",
+				field: "name"
+			}, {
+				label: "Gender",
+				field: "gender"
+			}, {
+				label: "Age",
+				field: "age"
+			}];
+
+			var data = [{
+				index: 1,
+				name: "Tom",
+				gender: "Male",
+				age: 5
+			}, {
+				index: 2,
+				name: "Jerry",
+				gender: "Female",
+				age: 2
+			}, {
+				index: 3,
+				name: "Sun Wukong",
+				gender: "Male",
+				age: 1024
+			}];
+
+			grid.loadColumns(columns);
+			grid.loadData(data);
+		}
+
+		function newClicked() {
+			state = "New";
+			switchButtons("Confirm");
+			enableForm(true);
+
+			setFormData({});
+		}
+
+		function modifyClicked() {
+			state = "Modify";
+			switchButtons("Confirm");
+			enableForm(true);
+		}
+
+		function deleteClicked() {
+			if (confirm("Sure?")) {
+				grid.removeRow(grid.selectedRow);
+			}
+		}
+
+		function okClicked() {
+			var data = {
+				index: document.getElementById("inputIndex").value,
+				name: document.getElementById("inputName").value,
+				gender: document.getElementById("inputGender").value,
+				age: document.getElementById("inputAge").value
+			};
+
+			if (state === "New") {
+				grid.insertRow(data);
+			}
+			else if (state === "Modify") {
+				grid.selectedRow.refresh(data);
+			}
+			state = "View";
+			switchButtons("Operate");
+			enableForm(false);
+		}
+
+		function cancelClicked() {
+			state = "View";
+			switchButtons("Operate");
+			enableForm(false);
+
+			setFormData(grid.selectedRow.data);
+		}
+
+		function enableForm(flag) {
+			document.getElementById("inputIndex").disabled = !flag;
+			document.getElementById("inputName").disabled = !flag;
+			document.getElementById("inputGender").disabled = !flag;
+			document.getElementById("inputAge").disabled = !flag;
+		}
+
+		function switchButtons(group) {
+			if (group === "Operate") {
+				document.getElementById("operateBtns").style.display = "";
+				document.getElementById("confirmBtns").style.display = "none";
+			}
+			else if (group === "Confirm") {
+				document.getElementById("operateBtns").style.display = "none";
+				document.getElementById("confirmBtns").style.display = "";
+			}
+		}
+
+		function getFormData() {
+			return {
+				index: document.getElementById("inputIndex").value,
+				name: document.getElementById("inputName").value,
+				gender: document.getElementById("inputGender").value,
+				age: document.getElementById("inputAge").value
+			};
+		}
+
+		function setFormData(data) {
+			document.getElementById("inputIndex").value = data.index || "";
+			document.getElementById("inputName").value = data.name || "";
+			document.getElementById("inputGender").value = data.gender || "";
+			document.getElementById("inputAge").value = data.age || "";
+		}
+		</script>
+	</body>
+	</html>
+
+我们可以看到，这已经可以跑一个简单的维护界面了，但我们的功能还是有限的，在后续篇幅中，我们会讲述如何实现表格的渲染器、改变列的宽度，固定列头，表格体滚动，排序等高级功能。我们的最终目标是：一个很正式的DataGrid控件。

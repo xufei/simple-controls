@@ -12,6 +12,7 @@ var Tree = function(element) {
 	this.labelField = null;
 
 	this.dom = document.createElement("ul");
+	this.dom.className = "tree";
 	element.appendChild(this.dom);
 };
 
@@ -86,16 +87,34 @@ Tree.prototype = {
 		return result;
 	},
 
-	addNode : function(data) {
-		var node = new TreeNode(data, this);
-		this.nodes.push(node);
+	addNode : function(data, parent) {
+		var node;
+
+		if (parent) {
+			node = new TreeNode(data, parent);
+			parent.childNodes.push(node);
+			parent.childrenContainer.appendChild(node.dom);
+		}
+		else {
+			node = new TreeNode(data, this);
+			this.nodes.push(node);
+			this.dom.appendChild(node.dom);
+		}
+
 		this.allNodes.push(node);
-		
-		this.dom.appendChild(node.dom);
 
 		var that = this;
-		node.addEventListener("select", function (event) {
-			that.select(event.node);
+		node.addEventListener("selected", function (event) {
+			that.selectNode(event.node);
+		});
+
+		node.addEventListener("expanded", function (event) {
+			if (event.node.expanded) {
+				event.node.collapse();
+			}
+			else {
+				event.node.expand();
+			}
 		});
 
 		node.addEventListener("rightClicked", function (event) {
@@ -103,6 +122,8 @@ Tree.prototype = {
 			event.target = that;
 			that.dispatchEvent(event);
 		});
+
+		node.refreshIcon();
 
 		//已经成功添加了新节点
 		var event = {
@@ -114,7 +135,47 @@ Tree.prototype = {
 	},
 
 	removeNode : function(node) {
+		node.clear();
 
+		if (node == this.selectedNode) {
+			this.selectNode(null);
+		}
+
+		if (node.parent == this) {
+			this.dom.removeChild(node.dom);
+
+			for (var i=0; i<this.nodes.length; i++) {
+				if (this.nodes[i] == node) {
+					this.nodes.splice(i, 1);
+					break;
+				}
+			}
+		}
+		else {
+			node.parent.childrenContainer.removeChild(node.dom);
+			for (var i=0; i<node.parent.childNodes.length; i++) {
+				if (node.parent.childNodes[i] == node) {
+					node.parent.childNodes.splice(i, 1);
+					break;
+				}
+			}
+		}
+
+		node.destroy();
+
+		for (var i = 0; i < this.allNodes.length; i++) {
+			if (this.allNodes[i] == node) {
+				this.allNodes.splice(i, 1);
+				break;
+			}
+		}
+
+		//已经移除
+		var event = {
+			type: "rowRemoved",
+			target: this
+		};
+		this.dispatchEvent(event);
 	},
 
 	swapNodes : function(node1, node2) {
@@ -129,16 +190,23 @@ Tree.prototype = {
 		};
 
 		if (this.selectedNode) {
-			this.selectedNode.unselect();
+			this.selectedNode.select(false);
 		}
 
-		node.select();
+		if (node) {
+			node.select(true);
+		}
+
 		this.selectedNode = node;
 		
 		this.dispatchEvent(event);
 	},
 
 	clear : function() {
+
+	},
+
+	destroy: function() {
 
 	}
 }.extend(EventDispatcher);
@@ -155,8 +223,12 @@ var TreeNode = function(data, parent) {
 TreeNode.prototype = {
 	create: function() {
 		this.dom = document.createElement("li");
+		this.iconContainer = document.createElement("i");
+
 		this.labelContainer = document.createElement("span");
 		this.labelContainer.innerHTML = this.data[this.tree.labelField || "label"];
+
+		this.dom.appendChild(this.iconContainer);
 		this.dom.appendChild(this.labelContainer);
 
 		this.childrenContainer = document.createElement("ul");
@@ -168,72 +240,82 @@ TreeNode.prototype = {
 			}
 		}
 
-		var that = this;
-		this.labelContainer.onclick = function() {
-			var event = {
-				type: "selected",
-				node: that,
-				target: that
+		this.expanded = true;
+
+		bindEvent(this);
+
+		function bindEvent(node) {
+			//expand
+			node.iconContainer.onclick = function() {
+				var event = {
+					type: "expanded",
+					expanded: node.expanded,
+					node: node,
+					target: node
+				};
+
+				node.dispatchEvent(event);
 			};
 
-			that.dispatchEvent(event);
+			//select
+			node.labelContainer.onclick = function() {
+				var event = {
+					type: "selected",
+					node: node,
+					target: node
+				};
+
+				node.dispatchEvent(event);
+			};
+
+			//contextmenu
+			node.dom.oncontextmenu = function(e) {
+				var event = {
+					type: "rightClicked",
+					node: node,
+					target: node
+				};
+
+				node.dispatchEvent(event);
+
+				if ( e && e.stopPropagation )
+				//因此它支持W3C的stopPropagation()方法
+					e.stopPropagation();
+				else
+				//否则，我们需要使用IE的方式来取消事件冒泡
+					window.event.cancelBubble = true;
+
+				//阻止默认浏览器动作(W3C)
+				if ( e && e.preventDefault )
+					e.preventDefault();
+				//IE中阻止函数器默认动作的方式
+				else
+					window.event.returnValue = false;
+				return false;
+			}
 		}
+	},
 
-		this.dom.oncontextmenu = function(e) {
-			var event = {
-				type: "rightClicked",
-				node: that,
-				target: that
-			};
-
-			that.dispatchEvent(event);
-
-			if ( e && e.stopPropagation )
-			//因此它支持W3C的stopPropagation()方法
-				e.stopPropagation();
-			else
-			//否则，我们需要使用IE的方式来取消事件冒泡
-				window.event.cancelBubble = true;
-
-			//阻止默认浏览器动作(W3C)
-			if ( e && e.preventDefault )
-				e.preventDefault();
-			//IE中阻止函数器默认动作的方式
-			else
-				window.event.returnValue = false;
-			return false;
+	clear: function() {
+		while (this.childNodes.length > 0) {
+			this.removeNode(this.childNodes[0]);
 		}
 	},
 
 	destroy: function() {
+		this.data = null;
+		this.parent = null;
+		this.tree = null;
+		this.childNodes = null;
 
+		this.iconContainer = null;
+		this.labelContainer = null;
+		this.childrenContainer = null;
+		this.dom = null;
 	},
 
 	addNode: function(data) {
-		var node = new TreeNode(data, this);
-		this.childNodes.push(node);
-		this.tree.allNodes.push(node);
-		
-		this.childrenContainer.appendChild(node.dom);
-
-		var that = this;
-		node.addEventListener("select", function (event) {
-			that.select(event.node);
-		});
-
-		node.addEventListener("rightClicked", function (event) {
-			//只做转发，把主体改变一下
-			event.target = that;
-			that.dispatchEvent(event);
-		});
-
-		//已经成功添加了新节点
-		var event = {
-			type: "rowInserted",
-			newNode: node,
-			target: this
-		};
-		this.dispatchEvent(event);
+		this.tree.addNode(data, this);
 	},
 
 	removeNode: function(node) {
@@ -253,18 +335,36 @@ TreeNode.prototype = {
 	},
 
 	expand: function() {
-		this.childrenContainer.style.display = "";
+		this.childrenContainer.hidden = false;
+		this.expanded = true;
+		this.refreshIcon();
 	},
 	
 	collapse: function() {
-		this.childrenContainer.style.display = "hidden";
+		this.childrenContainer.hidden = true;
+		this.expanded = false;
+		this.refreshIcon();
 	},
 	
-	select: function() {
-		this.labelContainer.className = "info";
+	select: function(flag) {
+		if (flag) {
+			this.dom.className = "info";
+		}
+		else {
+			this.dom.className = "";
+		}
+	},
+
+	refreshData: function(data) {
+		this.labelContainer.innerHTML = data[this.tree.labelField || "label"];
 	},
 	
-	unselect: function() {
-		this.labelContainer.className = "";
+	refreshIcon: function() {
+		if (this.expanded) {
+			this.iconContainer.className = "icon-minus";
+		}
+		else {
+			this.iconContainer.className = "icon-plus";
+		}
 	}
 }.extend(EventDispatcher);

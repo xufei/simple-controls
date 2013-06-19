@@ -8,90 +8,183 @@
 	<meta name="author" content="xufei">
 
 	<link href="http://twitter.github.io/bootstrap/assets/css/bootstrap.css" rel="stylesheet"/>
+	<link href="css/tree.css" rel="stylesheet"/>
 	<script type="text/javascript" src="js/utils.js"></script>
 	<script type="text/javascript" src="js/tree.js"></script>
-	<script type="text/javascript" src="js/contextmenu.js"></script>
 </head>
 <body>
-<div id="tree1" class="span12 row"></div>
-<div class="span12 controls controls-row">
-	<input id="indexField" class="span2" type="text" placeholder="index"/>
-	<input id="nameField" class="span4" type="text" placeholder="name"/>
-	<input id="genderField" class="span2" type="text" placeholder="gender"/>
-	<input id="ageField" class="span2" type="text" placeholder="age"/>
-	<button onclick="addItem()">Add</button>
-</div>
+	<div class="span12">
+		<div class="header">
+			<h3>Area Management</h3>
+		</div>
+		<div>
+			<div id="tree1" class="span12"></div>
 
-<script type="text/javascript">
-	var menu = new ContextMenu();
-	var data = ["New", "Edit", "Delete", "divider", "Test"];
-	menu.create(data);
+			<div class="row">
+				<div class="header">
+					<h4>Detail</h4>
+				</div>
+				<hr/>
+				<form class="form-horizontal span6">
+					<div class="control-group">
+						<label class="control-label" for="inputName">Name</label>
+						<div class="controls">
+							<input type="text" id="inputName" placeholder="Name">
+						</div>
+					</div>
+					<div class="control-group">
+						<label class="control-label" for="inputCode">Code</label>
+						<div class="controls">
+							<input type="text" id="inputCode" placeholder="Code">
+						</div>
+					</div>
+				</form>
+			</div>
 
-	menu.addEventListener("itemClicked", function(event) {
-		alert(event.item.data);
-	});
+			<div class="modal-footer">
+				<div id="operateBtns">
+					<button class="btn btn-primary" onclick="newClicked()">New</button>
+					<button class="btn btn-primary" onclick="modifyClicked()"><i class="icon-edit icon-white"></i>Modify</button>
+					<button class="btn btn-primary" onclick="deleteClicked()"><i class="icon-remove icon-white"></i>Delete</button>
+				</div>
+				<div id="confirmBtns">
+					<button class="btn btn-primary" onclick="okClicked()"><i class="icon-ok icon-white"></i>OK</button>
+					<button class="btn btn-primary" onclick="cancelClicked()">Cancel</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script type="text/javascript">
+	var state = "View";
 
 	var tree = new Tree(document.getElementById("tree1"));
 
-	var data = [
-		{
-			name: "Jiangsu",
-			code: "js",
-			children: [
-				{
-					name: "Nanjing",
-					code: "nj"
-				},
-				{
-					name: "Suzhou",
-					code: "sz",
-					children: [
-						{
-							name: "Wujiang",
-							code: "wj"
-						},
-						{
-							name: "Changshu",
-							code: "cs"
-						}
-					]
-				}
-			]
-		},
-		{
-			name: "Yunnan",
-			code: "yn"
-		},
-		{
-			name: "Fujian",
-			code: "fj"
-		}
-	];
-
-	tree.labelField = "name";
-	tree.loadTreeData(data);
-
 	tree.addEventListener("changed", function (event) {
-		alert(event.newNode.data.name);
+		var data;
+		if (event.newNode) {
+			data = event.newNode.data;
+		} 
+		else {
+			data = {};
+		}
+
+		setFormData(data);
 	});
 
-	tree.addEventListener("rightClicked", function (event) {
-		var node = event.node;
+	init();
 
-		var position = getOffset(node.dom.firstChild);
-		menu.show(position);
-	});
+	function init() {
+		enableForm(false);
+		switchButtons("Operate");
 
-	function addItem() {
-		var data = {
-			index: document.getElementById("indexField").value,
-			name: document.getElementById("nameField").value,
-			gender: document.getElementById("genderField").value,
-			age: document.getElementById("ageField").value
-		};
+		var data = [
+			{
+				name: "Jiangsu",
+				code: "js",
+				children: [
+					{
+						name: "Nanjing",
+						code: "nj"
+					},
+					{
+						name: "Suzhou",
+						code: "sz",
+						children: [
+							{
+								name: "Wujiang",
+								code: "wj"
+							},
+							{
+								name: "Changshu",
+								code: "cs"
+							}
+						]
+					}
+				]
+			},
+			{
+				name: "Yunnan",
+				code: "yn"
+			},
+			{
+				name: "Fujian",
+				code: "fj"
+			}
+		];
 
-		grid.insertRow(data);
+		tree.labelField = "name";
+		tree.loadTreeData(data);
 	}
-</script>
+
+	function newClicked() {
+		state = "New";
+		switchButtons("Confirm");
+		enableForm(true);
+
+		setFormData({});
+	}
+
+	function modifyClicked() {
+		state = "Modify";
+		switchButtons("Confirm");
+		enableForm(true);
+	}
+
+	function deleteClicked() {
+		if (confirm("Sure?")) {
+			tree.removeNode(tree.selectedNode);
+		}
+	}
+
+	function okClicked() {
+		var data = getFormData();
+
+		if (state === "New") {
+			tree.addNode(data, tree.selectedNode);
+		}
+		else if (state === "Modify") {
+			tree.selectedNode.refreshData(data);
+		}
+		state = "View";
+		switchButtons("Operate");
+		enableForm(false);
+	}
+
+	function cancelClicked() {
+		state = "View";
+		switchButtons("Operate");
+		enableForm(false);
+
+		setFormData(tree.selectedItem.data);
+	}
+
+	function enableForm(flag) {
+		document.getElementById("inputName").disabled = !flag;
+		document.getElementById("inputCode").disabled = !flag;
+	}
+
+	function switchButtons(group) {
+		if (group === "Operate") {
+			document.getElementById("operateBtns").style.display = "";
+			document.getElementById("confirmBtns").style.display = "none";
+		}
+		else if (group === "Confirm") {
+			document.getElementById("operateBtns").style.display = "none";
+			document.getElementById("confirmBtns").style.display = "";
+		}
+	}
+
+	function getFormData() {
+		return {
+			name: document.getElementById("inputName").value,
+			code: document.getElementById("inputCode").value
+		};
+	}
+
+	function setFormData(data) {
+		document.getElementById("inputName").value = data.name || "";
+		document.getElementById("inputCode").value = data.code || "";
+	}
+	</script>
 </body>
 </html>
